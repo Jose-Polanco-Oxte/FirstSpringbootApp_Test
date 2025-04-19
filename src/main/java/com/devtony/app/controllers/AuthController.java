@@ -16,11 +16,13 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/auth")
 public class AuthController{
 
-    @Autowired
-    private IUserService userService;
+    private final IUserService userService;
+    private final IAuthService authService;
 
-    @Autowired
-    private IAuthService authService;
+    public AuthController(IUserService userService, IAuthService authService) {
+        this.userService = userService;
+        this.authService = authService;
+    }
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponseDto> login(@Valid @RequestBody  LoginRequestDto loginRequestDto) {
@@ -29,8 +31,8 @@ public class AuthController{
     }
 
     @PostMapping("/register")
-    public ResponseEntity<SimpleFormatBodyResponse> saveUser(@Valid @RequestBody UserRequestDto userRequestDto){
-        userService.saveUser(userRequestDto);
+    public ResponseEntity<SimpleFormatBodyResponse> register(@Valid @RequestBody UserRequestDto userRequestDto){
+        userService.createUser(userRequestDto);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(new SimpleFormatBodyResponse("Usuario registrado correctamente"));
     }

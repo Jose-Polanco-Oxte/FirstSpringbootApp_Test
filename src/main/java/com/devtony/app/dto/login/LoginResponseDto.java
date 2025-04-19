@@ -4,11 +4,13 @@ public class LoginResponseDto {
     private String token;
     private String name;
     private String email;
+    private String qrCode;
 
-    public LoginResponseDto(String token, String name, String email) {
+    public LoginResponseDto(String token, String name, String email, String qrCode) {
         this.token = token;
         this.name = name;
         this.email = email;
+        this.qrCode = qrCode;
     }
 
     public String getToken() {
@@ -33,5 +35,13 @@ public class LoginResponseDto {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getQrCode() {
+        return qrCode;
+    }
+
+    public void setQrCode(String qrCode) {
+        this.qrCode = qrCode;
     }
 }

@@ -20,7 +20,7 @@ public class Event {
     private String description;
     private String image;
 
-    @ManyToOne
+    @ManyToOne()
     @JoinColumn(name = "creator_id")
     private User creator;
 

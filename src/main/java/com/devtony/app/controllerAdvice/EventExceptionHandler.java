@@ -11,6 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
+import java.util.NoSuchElementException;
+
 @Order(100)
 @ControllerAdvice
 public class EventExceptionHandler {
@@ -27,5 +29,12 @@ public class EventExceptionHandler {
     public ResponseEntity<ExceptionsResponse> handleInvitationException(InvitationException exception) {
         LOG.error(exception.getMessage(), exception);
         return new ResponseEntity<>(exception.getDetails().getResponse(), HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(value = {NoSuchElementException.class})
+    public ResponseEntity<ExceptionsResponse> handleNoSuchElementException(NoSuchElementException exception) {
+        LOG.error(exception.getMessage(), exception);
+        var details = new ExceptionsResponse("No hay elementos", "low");
+        return new ResponseEntity<>(details, HttpStatus.NO_CONTENT);
     }
 }

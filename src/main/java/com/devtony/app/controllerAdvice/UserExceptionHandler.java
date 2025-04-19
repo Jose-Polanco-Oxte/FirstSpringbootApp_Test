@@ -9,6 +9,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -45,6 +46,13 @@ public class UserExceptionHandler {
     public ResponseEntity<ExceptionsResponse> handleUserAuthExceptions(UserAuthException exception) {
         LOG.error(exception.getMessage(), exception);
         return new ResponseEntity<>(exception.getDetails().getResponse(), HttpStatus.UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(value = {AuthorizationDeniedException.class})
+    public ResponseEntity<ExceptionsResponse> handleAuthorizationDeniedException(AuthorizationDeniedException exception) {
+        LOG.error(exception.getMessage(), exception);
+        var details = new ExceptionsResponse("No tienes permisos para realizar esta acción", "high");
+        return new ResponseEntity<>(details, HttpStatus.FORBIDDEN);
     }
 
     @ExceptionHandler(value = {BadCredentialsException.class})

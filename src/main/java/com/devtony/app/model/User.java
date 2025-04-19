@@ -18,6 +18,9 @@ public class User {
 
     private String password;
 
+    @Column(name = "qr_code_64", columnDefinition = "TEXT", nullable = false)
+    private String qrCode;
+
     @OneToMany(mappedBy = "user")
     private Set<EventInvitation> invitations = new HashSet<>();
 
@@ -63,7 +66,15 @@ public class User {
         return roles;
     }
 
-    public void setRoles(String role) {
-        this.roles.add(role);
+    public void setRoles(Set<String> roles) {
+        this.roles = roles;
+    }
+
+    public String getQrCode() {
+        return qrCode;
+    }
+
+    public void setQrCode(String qrCode) {
+        this.qrCode = qrCode;
     }
 }

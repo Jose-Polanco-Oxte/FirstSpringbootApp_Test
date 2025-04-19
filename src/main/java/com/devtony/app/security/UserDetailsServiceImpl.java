@@ -5,15 +5,17 @@ import com.devtony.app.exception.UserAuthException;
 import com.devtony.app.model.User;
 import com.devtony.app.repository.IUserRepository;
 import com.devtony.app.security.details.CustomUserDetails;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
-@Service
+@Component
 public class UserDetailsServiceImpl implements UserDetailsService {
 
-    @Autowired
-    private IUserRepository userRepository;
+    private final IUserRepository userRepository;
+
+    public UserDetailsServiceImpl(IUserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
 
     @Override
     public CustomUserDetails loadUserByUsername(String name) throws UserAuthException {
@@ -23,7 +25,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         return new CustomUserDetails(user);
     }
 
-    public CustomUserDetails loadUserById(Long id) {
+    public CustomUserDetails loadUserById(Long id) throws UserAuthException {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new UserAuthException("User not found",
                         new ExceptionDetails("Usuario no encontrado", "low")));

@@ -54,11 +54,11 @@ public class JwtFilter extends OncePerRequestFilter {
 
         } catch (Exception e) {
             // Manejar errores y devolver un JSON detallado
-            handleFilterException(response, e);
+            handleFilterException(response, request, e);
         }
     }
 
-    private void handleFilterException(HttpServletResponse response, Exception e) throws IOException {
+    private void handleFilterException(HttpServletResponse response, HttpServletRequest request, Exception e) throws IOException {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED); // 401 Unauthorized
         response.setContentType("application/json");
 
@@ -68,7 +68,7 @@ public class JwtFilter extends OncePerRequestFilter {
         errorDetails.put("status", HttpServletResponse.SC_UNAUTHORIZED);
         errorDetails.put("error", "Unauthorized");
         errorDetails.put("message", e.getMessage());
-        errorDetails.put("path", ""); // Puedes agregar aquí la URL del request si es necesario
+        errorDetails.put("path", request.getRequestURI()); // Añadir la URL del request
 
         // Escribir la respuesta en formato JSON
         response.getWriter().write(new ObjectMapper().writeValueAsString(errorDetails));

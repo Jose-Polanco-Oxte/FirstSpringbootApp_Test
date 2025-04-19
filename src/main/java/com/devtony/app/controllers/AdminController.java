@@ -5,7 +5,7 @@ import com.devtony.app.dto.admin.UserAdminRequestDto;
 import com.devtony.app.dto.admin.UserAdminResponseDto;
 import com.devtony.app.exception.AdminException;
 import com.devtony.app.exception.ExceptionDetails;
-import com.devtony.app.repository.projections.UserProjection;
+import com.devtony.app.repository.projections.UserResponse;
 import com.devtony.app.services.interfaces.IAdminService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@CrossOrigin(origins = "http://127.0.0.1:5500")
 @RestController
 @RequestMapping("/admin")
 public class AdminController {
@@ -41,7 +40,7 @@ public class AdminController {
     }
 
     @GetMapping("/get-users/{adminKey}")
-    public ResponseEntity<List<UserProjection>> getUsers(@PathVariable int adminKey) {
+    public ResponseEntity<List<UserAdminResponseDto>> getUsers(@PathVariable int adminKey) {
         if (!(adminKey == this.adminKey)) {
             throw new AdminException("Invalid admin key",
                     new ExceptionDetails("Clave de administrador inválida", "high"));

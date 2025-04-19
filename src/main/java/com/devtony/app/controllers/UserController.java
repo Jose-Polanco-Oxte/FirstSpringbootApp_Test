@@ -3,44 +3,53 @@ package com.devtony.app.controllers;
 import com.devtony.app.dto.SimpleFormatBodyResponse;
 import com.devtony.app.dto.user.UserRequestDto;
 import com.devtony.app.dto.user.UserResponseDto;
-import com.devtony.app.repository.projections.UserProjection;
+import com.devtony.app.repository.projections.PredictedUserProjection;
 import com.devtony.app.services.interfaces.IUserService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 
 @RestController
 @RequestMapping("/user")
 public class UserController {
 
-    @Autowired
-    private IUserService userService;
+    private final IUserService userService;
 
-    @PreAuthorize("permitAll()")
-    @GetMapping("/get-all")
-    public ResponseEntity<List<UserProjection>> getAllUsers(){
-        return ResponseEntity.status(HttpStatus.OK).body(userService.getUsers());
+    public UserController(IUserService userService) {
+        this.userService = userService;
     }
 
     @PreAuthorize("permitAll()")
-    @GetMapping("/get/{id}")
-    public ResponseEntity<UserResponseDto> getUserById(@PathVariable Long id){
-        return ResponseEntity.status(HttpStatus.OK).body(userService.getUser(id));
+    @GetMapping("/me")
+    public ResponseEntity<UserResponseDto> me(){
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(userService.getUser());
     }
 
     @PreAuthorize("permitAll()")
-    @PostMapping("/edit-user")
-    public ResponseEntity<SimpleFormatBodyResponse> editUser(@RequestBody UserRequestDto userRequestDto) {
+    @PostMapping("/edit-me")
+    public ResponseEntity<SimpleFormatBodyResponse> editMer(@RequestBody UserRequestDto userRequestDto) {
         userService.updateUser(userRequestDto);
-        return ResponseEntity.status(HttpStatus.OK).body(new SimpleFormatBodyResponse("Usuario actualizado correctamente"));
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(new SimpleFormatBodyResponse("Usuario actualizado correctamente"));
     }
 
-    //Test
-    @GetMapping("/test1/{name}")
-    public String test2(@PathVariable String name){
-        return "Test complete " + name;
+    @PreAuthorize("permitAll()")
+    @DeleteMapping("/delete-me")
+    public ResponseEntity<SimpleFormatBodyResponse> deleteMe() {
+        return null;
+    }
+
+    @PreAuthorize("permitAll()")
+    @GetMapping("/search-users")
+    public ResponseEntity<List<PredictedUserProjection>> searchUserByPrediction(
+            @RequestParam String searchingText,
+            @RequestParam(defaultValue = "10") int limit
+    ) {
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(userService.predictionUsers(searchingText, limit));
     }
 }

@@ -1,8 +1,8 @@
 package com.devtony.app.services;
 
-import com.devtony.app.dto.events.AllEventsResponseDto;
 import com.devtony.app.dto.events.EventRequestDto;
 import com.devtony.app.dto.events.EventResponseDto;
+import com.devtony.app.dto.events.PageEventResponseDto;
 import com.devtony.app.exception.EventException;
 import com.devtony.app.exception.ExceptionDetails;
 import com.devtony.app.exception.UserAuthException;
@@ -10,90 +10,141 @@ import com.devtony.app.model.Event;
 import com.devtony.app.model.User;
 import com.devtony.app.repository.IEventRepository;
 import com.devtony.app.repository.IUserRepository;
+import com.devtony.app.repository.projections.EventProjection;
+import com.devtony.app.repository.projections.InvitationEventProjection;
 import com.devtony.app.services.interfaces.IEventService;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.devtony.app.services.validations.EventValidations;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
-
+import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
+import java.util.List;
 
 @Service
 public class EventService implements IEventService {
 
-    @Autowired
-    private IUserRepository userRepository;
+    private final IUserRepository userRepository;
+    private final IEventRepository eventRepository;
+    private final EventValidations validations;
+    private final AuxiliarAuthService authService;
 
-    @Autowired
-    private IEventRepository eventRepository;
-
-    @Override
-    public AllEventsResponseDto getAllEvents() {
-        long count = eventRepository.count();
-        if (count == 0) {
-            throw new EventException("No events found",
-                    new ExceptionDetails("No existen eventos creados actualmente", "low"));
-        }
-        return new AllEventsResponseDto(count, eventRepository.findAllBy());
+    public EventService(IUserRepository userRepository, IEventRepository eventRepository, EventValidations validations, AuxiliarAuthService authService) {
+        this.userRepository = userRepository;
+        this.eventRepository = eventRepository;
+        this.validations = validations;
+        this.authService = authService;
     }
 
     @Override
-    public EventResponseDto getEvent(Long eventID) {
-        Event evento = eventRepository.findById(eventID)
+    public PageEventResponseDto<EventProjection> getAllEvents(Long cursor, int limit) throws EventException{
+        Long lastId;
+        boolean hasNext;
+        List<EventProjection> events;
+        if (cursor == null) {
+            Page<EventProjection> pages = eventRepository.selectWithPagination(PageRequest.of(0, limit));
+            events = pages.getContent();
+            lastId = pages.getContent().getLast().getId();
+            hasNext = pages.hasNext();
+        } else {
+            events = eventRepository.selectWithCursor(cursor, limit);
+            lastId = events.getLast().getId();
+            hasNext = eventRepository.existsNext(lastId);
+        }
+        validations.validateEventsReturn(events);
+        return new PageEventResponseDto<>(lastId, hasNext, events);
+    }
+
+    @Override
+    public PageEventResponseDto<EventProjection> getMyEvents(Long cursor, int limit) throws EventException {
+        Long lastId;
+        boolean hasNext;
+        List<EventProjection> events;
+        if (cursor == null) {
+            Page<EventProjection> pages = eventRepository.selectMyEventsWithPagination(PageRequest.of(0, limit), authService.getId());
+            events = pages.getContent();
+            lastId = pages.getContent().getLast().getId();
+            hasNext = pages.hasNext();
+        } else {
+            events = eventRepository.selectMyEventsWithCursor(cursor, limit, authService.getId());
+            lastId = events.getLast().getId();
+            hasNext = eventRepository.existsNext(lastId);
+        }
+        validations.validateEventsReturn(events);
+        return new PageEventResponseDto<>(lastId, hasNext, events);
+    }
+
+    @Override
+    public EventResponseDto getEvent(Long eventId) throws EventException {
+        Event evento = eventRepository.findById(eventId)
                 .orElseThrow(() -> new EventException("Event not found",
                         new ExceptionDetails("El evento no ha sido encontrado", "low")));
-
         return new EventResponseDto(evento.getId(), evento.getName(), evento.getDescription(), String.valueOf(evento.getDate()));
     }
 
+    @Transactional
     @Override
-    public void createEvent(EventRequestDto event) {
-        AuxiliarAuthService authService = new AuxiliarAuthService();
-        if (eventRepository.findByName(event.getName()).isPresent()) {
+    public void createEvent(EventRequestDto eventRequestDto) throws EventException {
+        eventRepository.findByName(eventRequestDto.getName()).ifPresent(user -> {
             throw new EventException("Event already exists",
                     new ExceptionDetails("El evento ya existe", "low"));
-        }
+        });
         Event evento = new Event();
         User user = userRepository.findById(authService.getId())
                 .orElseThrow(() -> new UserAuthException("User not found",
                         new ExceptionDetails("La administración del evento no pudo asignarse porque el usuario no se ha encontrado en la base de datos",
                                 "medium")));
         evento.setCreator(user);
-        evento.setName(event.getName());
-        evento.setDescription(event.getDescription());
-        evento.setDate(Instant.parse(event.getDate()));
-        evento.setLocation(event.getLocation());
-        eventRepository.save(evento);
-    }
-
-    @Override
-    public void deleteEvent(Long eventID) {
-        AuxiliarAuthService authService = new AuxiliarAuthService();
-        Event evento = eventRepository.findById(eventID)
-                .orElseThrow(() -> new EventException("Event not found",
-                        new ExceptionDetails("El evento no ha sido encontrado", "low")));
-
-        if (!evento.getCreator().getId().equals(authService.getId())) {
-            throw new EventException("Unauthorized",
-                    new ExceptionDetails("No tienes permisos para eliminar este evento", "high"));
-        }
-        eventRepository.delete(evento);
-    }
-
-    @Override
-    public void updateEvent(EventRequestDto eventRequestDto) {
-        AuxiliarAuthService authService = new AuxiliarAuthService();
-        Event evento = eventRepository.findByName(eventRequestDto.getName())
-                .orElseThrow(() -> new EventException("Event not found",
-                        new ExceptionDetails("El evento no ha sido encontrado", "low")));
-
-        if (!evento.getCreator().getId().equals(authService.getId())) {
-            throw new EventException("Unauthorized",
-                    new ExceptionDetails("No tienes permisos para editar este evento", "high"));
-        }
-
         evento.setName(eventRequestDto.getName());
         evento.setDescription(eventRequestDto.getDescription());
         evento.setDate(Instant.parse(eventRequestDto.getDate()));
         evento.setLocation(eventRequestDto.getLocation());
         eventRepository.save(evento);
+    }
+
+    @Transactional
+    @Override
+    public void updateEvent(EventRequestDto eventRequestDto, Long eventId) throws EventException {
+        Event evento = eventRepository.findById(eventId)
+                .orElseThrow(() -> new EventException("Event not found",
+                        new ExceptionDetails("El evento no ha sido encontrado", "low")));
+
+        validations.validateEditionEvent(evento, authService.getId(), EventValidations.OperationType.UPDATE);
+        evento.setName(eventRequestDto.getName());
+        evento.setDescription(eventRequestDto.getDescription());
+        evento.setDate(Instant.parse(eventRequestDto.getDate()));
+        evento.setLocation(eventRequestDto.getLocation());
+        eventRepository.save(evento);
+    }
+
+    @Transactional
+    @Override
+    public void deleteEvent(Long eventId) throws EventException {
+        /*Enviar notificaciones a todos los invitados sobre la eliminación del evento*/
+        Event evento = eventRepository.findById(eventId)
+                .orElseThrow(() -> new EventException("Event not found",
+                        new ExceptionDetails("El evento no ha sido encontrado", "low")));
+        validations.validateEditionEvent(evento, authService.getId(), EventValidations.OperationType.DELETE);
+        eventRepository.deleteById
+    }
+
+    @Override
+    public PageEventResponseDto<InvitationEventProjection> eventInvitation(Long eventId, Long cursor, int limit) throws EventException {
+        Long lastId;
+        boolean hasNext;
+        List<InvitationEventProjection> users;
+        if (cursor == null) {
+            Page<InvitationEventProjection> pages = eventRepository.findEventInvitationsByEventIdWithPagination(eventId, PageRequest.of(0, limit));
+            users = pages.getContent();
+            lastId = pages.getContent().getLast().getUserId();
+            hasNext = pages.hasNext();
+        } else {
+            users = eventRepository.findEventInvitationsByEventIdWithCursor(eventId, cursor, limit);
+            lastId = users.getLast().getUserId();
+            hasNext = eventRepository.existsNextInvitation(eventId, lastId);
+        }
+        validations.validateUsersInvitedReturn(users);
+        return new PageEventResponseDto<>(lastId, hasNext, users);
+
     }
 }

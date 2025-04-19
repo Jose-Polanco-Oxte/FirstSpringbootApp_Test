@@ -9,6 +9,7 @@ public class Attendance {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
+    @Column(name = "attended", columnDefinition = "BIT(1) default 0")
     private Boolean attended;
     private Instant checkInTime;  // Hora de entrada
     private Instant checkOutTime; // Hora de salida

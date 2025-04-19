@@ -1,9 +1,9 @@
 package com.devtony.app.repository.projections;
 
-public interface InvitationProjection {
+public interface MyInvitationProjection {
     Long getId();
-    String getStatus();
     EventInfo getEvent();
+    String getStatus();
     interface EventInfo {
         Long getId();
         String getName();

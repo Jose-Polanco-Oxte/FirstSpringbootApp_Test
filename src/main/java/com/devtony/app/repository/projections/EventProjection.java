@@ -1,14 +1,17 @@
 package com.devtony.app.repository.projections;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
 
 public interface EventProjection {
     Long getId();
     String getName();
     Instant getDate();
-    String getLocation();
     String getDescription();
+    String getLocation();
     String getImage();
-    Long getCreatorId();
     String getCreatorName();
+    Long getCreatorId();
 }

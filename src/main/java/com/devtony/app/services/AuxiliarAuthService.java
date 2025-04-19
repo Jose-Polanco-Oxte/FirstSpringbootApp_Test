@@ -3,42 +3,40 @@ package com.devtony.app.services;
 import com.devtony.app.security.details.CustomUserDetails;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Component;
 
 import java.util.Set;
 
+@Component
 public class AuxiliarAuthService {
-    private Authentication authentication;
-    private CustomUserDetails userDetails;
 
-    public AuxiliarAuthService() {
-        this.authentication = SecurityContextHolder.getContext().getAuthentication();
-        this.userDetails = (CustomUserDetails) authentication.getPrincipal();
-    }
-
-    //Getters
     public Authentication getAuthentication() {
-        return authentication;
+        return SecurityContextHolder.getContext().getAuthentication();
     }
 
     public CustomUserDetails getUserDetails() {
-        return userDetails;
+        Object principal = getAuthentication().getPrincipal();
+        if (principal instanceof CustomUserDetails) {
+            return (CustomUserDetails) principal;
+        }
+        throw new IllegalStateException("El usuario autenticado no es válido");
     }
 
-    //MEtodos auxiliares
+    //Métodos auxiliares
     public Long getId() {
-        return userDetails.getId();
+        return getUserDetails().getId();
     }
 
     public String getEmail() {
-        return userDetails.getEmail();
+        return getUserDetails().getEmail();
     }
 
 
     public String getName() {
-        return userDetails.getName();
+        return getUserDetails().getName();
     }
 
     public Set<String> getRole() {
-        return userDetails.getRoles();
+        return getUserDetails().getRoles();
     }
 }

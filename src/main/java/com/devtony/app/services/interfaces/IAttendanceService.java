@@ -4,8 +4,8 @@ import com.devtony.app.dto.InvitationEvent.AttendanceResponseDto;
 
 
 public interface IAttendanceService {
-    public void markAttendance(Long eventID, String userEmail);
-    public AttendanceResponseDto getCheckInOut(Long eventID);
+    public void markAttendance(Long eventId, String userEmail);
+    public AttendanceResponseDto getCheckInOut(Long eventId);
     public String totalHoursInAllEvents();
-    public void checkOut(Long eventID, String userEmail);
+    public void checkOut(Long eventId, String userEmail);
 }

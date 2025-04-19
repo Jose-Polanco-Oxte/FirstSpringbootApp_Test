@@ -1,6 +1,7 @@
 package com.devtony.app.services;
 
 import com.devtony.app.dto.InvitationEvent.CreateInvitationDto;
+import com.devtony.app.dto.InvitationEvent.CreateInvitationsDto;
 import com.devtony.app.exception.ExceptionDetails;
 import com.devtony.app.exception.InvitationException;
 import com.devtony.app.model.Attendance;
@@ -9,10 +10,11 @@ import com.devtony.app.repository.IAttendanceRepository;
 import com.devtony.app.repository.IEventInvitationRepository;
 import com.devtony.app.repository.IEventRepository;
 import com.devtony.app.repository.IUserRepository;
-import com.devtony.app.repository.projections.InvitationProjection;
+import com.devtony.app.repository.projections.MyInvitationProjection;
 import com.devtony.app.services.interfaces.IInvitationService;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.devtony.app.services.validations.InvitationValidation;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
@@ -20,72 +22,52 @@ import java.util.List;
 @Service
 public class InvitationService implements IInvitationService {
 
-    @Autowired
-    private IEventRepository eventRepository;
+    private final IEventRepository eventRepository;
+    private final IUserRepository userRepository;
+    private final IAttendanceRepository attendanceRepository;
+    private final IEventInvitationRepository eventInvitationRepository;
+    private final AuxiliarAuthService authService;
+    private final InvitationValidation invitationValidation;
 
-    @Autowired
-    private IUserRepository userRepository;
-
-    @Autowired
-    private IAttendanceRepository attendanceRepository;
-
-    @Autowired
-    private IEventInvitationRepository eventInvitationRepository;
-
-    @Override
-    public List<InvitationProjection> getUserInvitationsAccepted() {
-        AuxiliarAuthService authService = new AuxiliarAuthService();
-        if (eventInvitationRepository.count() == 0) {
-            throw new InvitationException("No invitations found",
-                    new ExceptionDetails("No existen invitaciones actualmente", "low"));
-        }
-        return eventInvitationRepository.findAllAcceptedInvitationsByUser(authService.getId())
-                .filter(list -> !list.isEmpty())
-                .orElseThrow(() -> new InvitationException("No accepted invitations found",
-                        new ExceptionDetails("Ninguna invitación ha sido aceptada aún", "low")));
+    public InvitationService(IEventRepository eventRepository, IUserRepository userRepository,
+                             IAttendanceRepository attendanceRepository, IEventInvitationRepository eventInvitationRepository,
+                             AuxiliarAuthService authService, InvitationValidation invitationValidation) {
+        this.eventRepository = eventRepository;
+        this.userRepository = userRepository;
+        this.attendanceRepository = attendanceRepository;
+        this.eventInvitationRepository = eventInvitationRepository;
+        this.authService = authService;
+        this.invitationValidation = invitationValidation;
     }
 
     @Override
-    public List<InvitationProjection> getUserInvitationsPending() {
-        AuxiliarAuthService authService = new AuxiliarAuthService();
-        if (eventInvitationRepository.count() == 0) {
-            throw new InvitationException("No invitations found",
-                    new ExceptionDetails("No existen invitaciones actualmente", "low"));
-        }
-        return eventInvitationRepository.findAllPendingInvitationsByUser(authService.getId())
-                .filter(list -> !list.isEmpty())
-                .orElseThrow(() -> new InvitationException("No pending invitations found",
-                        new ExceptionDetails("No hay invitaciones pendientes", "low")));
+    public List<MyInvitationProjection> getUserInvitationsAccepted() throws InvitationException {
+        List<MyInvitationProjection> invitations = eventInvitationRepository.findAllAcceptedInvitationsByUser(authService.getId());
+        invitationValidation.validateInvitationListReturn(invitations);
+        return invitations;
     }
 
     @Override
-    public List<InvitationProjection> getUserInvitationsRejected() {
-        AuxiliarAuthService authService = new AuxiliarAuthService();
-        if (eventInvitationRepository.count() == 0) {
-            throw new InvitationException("No invitations found",
-                    new ExceptionDetails("No existen invitaciones actualmente", "low"));
-        }
-        return eventInvitationRepository.findAllRejectedInvitationsByUser(authService.getId())
-                .filter(list -> !list.isEmpty())
-                .orElseThrow(() -> new InvitationException("No rejected invitations found",
-                        new ExceptionDetails("No hay invitaciones rechazadas", "low")));
+    public List<MyInvitationProjection> getUserInvitationsPending() throws InvitationException {
+        List<MyInvitationProjection> invitations = eventInvitationRepository.findAllPendingInvitationsByUser(authService.getId());
+        invitationValidation.validateInvitationListReturn(invitations);
+        return invitations;
     }
 
     @Override
-    public void acceptInvitation(Long invitationId) {
-        AuxiliarAuthService authService = new AuxiliarAuthService();
+    public List<MyInvitationProjection> getUserInvitationsRejected() throws InvitationException {
+        List<MyInvitationProjection> invitations = eventInvitationRepository.findAllRejectedInvitationsByUser(authService.getId());
+        invitationValidation.validateInvitationListReturn(invitations);
+        return invitations;
+    }
 
+    @Transactional
+    @Override
+    public void acceptInvitation(Long invitationId) throws InvitationException {
         EventInvitation invitation = eventInvitationRepository.findById(invitationId)
                 .orElseThrow(() -> new InvitationException("Invitation not found",
                         new ExceptionDetails("La invitación no existe", "low")));
-        if (!invitation.getUser().getId().equals(authService.getId())) {
-            throw new InvitationException("The invitation does not correspond to the user",
-                    new ExceptionDetails("Se intenta aceptar una invitación que no es suya", "medium"));
-        }
-        if (invitation.getStatus().equals("ACCEPTED")) {
-            throw new InvitationException("The invitation has been accepted",
-                    new ExceptionDetails("La invitación ya ha sido aceptada", "low"));
-        }
+        invitationValidation.validateInvitation(invitation, authService.getId(), InvitationValidation.Status.ACCEPT);
         invitation.setStatus("ACCEPTED");
         eventInvitationRepository.save(invitation);
         Attendance attendance = new Attendance();
@@ -93,33 +75,25 @@ public class InvitationService implements IInvitationService {
         attendanceRepository.save(attendance);
     }
 
+    @Transactional
     @Override
-    public void rejectInvitation(Long invitationId) {
-        AuxiliarAuthService authService = new AuxiliarAuthService();
-
+    public void rejectInvitation(Long invitationId) throws InvitationException {
         EventInvitation invitation = eventInvitationRepository.findById(invitationId)
                 .orElseThrow(() -> new InvitationException("Invitation not found",
                         new ExceptionDetails("La invitación no existe", "low")));
-        if (invitation.getStatus().equals("REJECTED")) {
-            throw new InvitationException("The invitation has been rejected",
-                    new ExceptionDetails("La invitación ya ha sido rechazada", "low"));
-        }
-        if (!invitation.getUser().getId().equals(authService.getId())) {
-            throw new InvitationException("The invitation does not correspond to the user",
-                    new ExceptionDetails("Se intenta aceptar una invitación que no es suya", "medium"));
-        }
+        invitationValidation.validateInvitation(invitation, authService.getId(), InvitationValidation.Status.REJECT);
         invitation.setStatus("REJECTED");
         eventInvitationRepository.save(invitation);
     }
 
+    @Transactional
     @Override
-    public void createInvitation(CreateInvitationDto createInvitationDto) {
-        AuxiliarAuthService authService = new AuxiliarAuthService();
-        if (eventInvitationRepository
-                .existsByEvent_IdAndUser_Id(createInvitationDto.getEventId(), createInvitationDto.getReceivingUserId())) {
-            throw new InvitationException("Invitation already exists",
-                    new ExceptionDetails("La invitación ya existe", "low"));
-        }
+    public void createInvitation(CreateInvitationDto createInvitationDto) throws InvitationException {
+        eventInvitationRepository.findMySentInvitationByEventId(createInvitationDto.getEventId(), authService.getId())
+                .ifPresent(invitation -> {
+                    throw new InvitationException("You have already sent an invitation to this user",
+                            new ExceptionDetails("Ya has enviado una invitación a este usuario", "low"));
+                });
 
         EventInvitation invitation = new EventInvitation();
         invitation.setUser(userRepository.findById(createInvitationDto.getReceivingUserId())
@@ -129,17 +103,33 @@ public class InvitationService implements IInvitationService {
         invitation.setEvent(eventRepository.findById(createInvitationDto.getEventId())
                 .orElseThrow(() -> new InvitationException("Event not found",
                         new ExceptionDetails("El evento no existe", "low"))));
-
-        invitation.setStatus("PENDING");
         invitation.setInvitationDate(Instant.now());
+        invitation.setStatus("PENDING");
         eventInvitationRepository.save(invitation);
     }
 
+    @Transactional
     @Override
-    public void deleteInvitation(Long invitationId) {
+    public void deleteInvitation(Long invitationId) throws InvitationException {
         EventInvitation invitation = eventInvitationRepository.findById(invitationId)
                 .orElseThrow(() -> new InvitationException("Invitation not found",
                         new ExceptionDetails("La invitación no existe", "low")));
         eventInvitationRepository.delete(invitation);
+    }
+
+    @Transactional
+    @Override
+    public void createManyInvitations(CreateInvitationsDto createInvitationsDto) throws InvitationException {
+        List<Long> ids = createInvitationsDto.getReceivingUserIds();
+        Long eventId = createInvitationsDto.getEventId();
+        for (Long id : ids) {
+            try {
+                createInvitation(new CreateInvitationDto(id, eventId));
+            } catch (InvitationException e) {
+                if (e.getMessage().equals("Event not found")) {
+                    throw e;
+                }
+            }
+        }
     }
 }

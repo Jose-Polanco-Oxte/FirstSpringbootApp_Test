@@ -7,8 +7,8 @@ import java.util.Set;
 public class UserAdminResponseDto extends UserResponseDto {
     private Set<String> roles;
 
-    public UserAdminResponseDto(Long id, String name, String email, Set<String> roles) {
-        super(id, name, email);
+    public UserAdminResponseDto(Long id, String name, String email, String qrCode ,Set<String> roles) {
+        super(id, name, email, qrCode);
         this.roles = roles;
     }
 

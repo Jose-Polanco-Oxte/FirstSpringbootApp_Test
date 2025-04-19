@@ -9,6 +9,7 @@ public class EventInvitation {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
 
+    @Column(name = "status", columnDefinition = "varchar(50) default 'PENDING'")
     private String status; // Ej: "PENDING", "ACCEPTED", "REJECTED"
     private Instant invitationDate;
 

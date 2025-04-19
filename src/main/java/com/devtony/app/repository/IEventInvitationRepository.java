@@ -1,7 +1,7 @@
 package com.devtony.app.repository;
 
 import com.devtony.app.model.EventInvitation;
-import com.devtony.app.repository.projections.InvitationProjection;
+import com.devtony.app.repository.projections.MyInvitationProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -13,16 +13,17 @@ import java.util.Optional;
 public interface IEventInvitationRepository extends JpaRepository<EventInvitation, Long> {
 
     @Query("SELECT i FROM EventInvitation i WHERE i.user.id = :userId AND i.status = 'ACCEPTED'")
-    Optional<List<InvitationProjection>> findAllAcceptedInvitationsByUser(@Param("userId") Long userId);
+    List<MyInvitationProjection> findAllAcceptedInvitationsByUser(@Param("userId") Long userId);
 
     @Query("SELECT i FROM EventInvitation i WHERE i.user.id = :userId AND i.status = 'PENDING'")
-    Optional<List<InvitationProjection>> findAllPendingInvitationsByUser(@Param("userId") Long userId);
+    List<MyInvitationProjection> findAllPendingInvitationsByUser(@Param("userId") Long userId);
 
     @Query("SELECT i FROM EventInvitation i WHERE i.user.id = :userId AND i.status = 'REJECTED'")
-    Optional<List<InvitationProjection>> findAllRejectedInvitationsByUser(@Param("userId") Long userId);
+    List<MyInvitationProjection> findAllRejectedInvitationsByUser(@Param("userId") Long userId);
 
     @Query("SELECT i FROM EventInvitation i WHERE i.user.id = :userId AND i.event.id = :eventId")
     Optional<EventInvitation> findAcceptedInvitation(@Param("userId") Long userId, @Param("eventId") Long eventId);
 
-    boolean existsByEvent_IdAndUser_Id(Long eventId, Long userId);
+    @Query("SELECT i FROM EventInvitation i WHERE i.event.id = :eventId AND i.user.id = :userId")
+    Optional<EventInvitation> findMySentInvitationByEventId(Long eventId, Long userId);
 }

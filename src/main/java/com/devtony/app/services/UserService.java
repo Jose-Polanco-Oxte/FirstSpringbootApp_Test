@@ -6,76 +6,88 @@ import com.devtony.app.dto.user.UserRequestDto;
 import com.devtony.app.dto.user.UserResponseDto;
 import com.devtony.app.model.User;
 import com.devtony.app.repository.IUserRepository;
-import com.devtony.app.repository.projections.UserProjection;
+import com.devtony.app.repository.projections.PredictedUserProjection;
 import com.devtony.app.services.interfaces.IUserService;
-import jakarta.transaction.Transactional;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.devtony.app.services.utils.QRGenerator;
+import com.devtony.app.services.validations.UserValidations;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.awt.image.BufferedImage;
 import java.util.List;
 
 @Service
 public class UserService implements IUserService {
 
-    @Autowired
-    private PasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
+    private final IUserRepository repoUser;
+    private final UserValidations validations;
+    private final QRGenerator qrGenerator;
+    private final AuxiliarAuthService authService;
+    private final String serverUrl;
 
-    @Autowired
-    private IUserRepository repoUser;
-
-    @Override
-    public List<UserProjection> getUsers() {
-        if (repoUser.count() == 0) {
-            throw new UserException("No users found",
-                    new ExceptionDetails("No existen usuarios registrados actualmente", "low"));
-        }
-        return repoUser.findAllBy();
+    public UserService(PasswordEncoder passwordEncoder, IUserRepository repoUser, UserValidations validations, AuxiliarAuthService authService, QRGenerator qrGenerator, @Value("${serverUrl}") String serverUrl) {
+        this.passwordEncoder = passwordEncoder;
+        this.repoUser = repoUser;
+        this.validations = validations;
+        this.authService = authService;
+        this.qrGenerator = qrGenerator;
+        this.serverUrl = serverUrl;
     }
 
-    @Override
     @Transactional
-    public void saveUser(UserRequestDto userRequestDto) throws UserException {
-        if (repoUser.existsByEmail(userRequestDto.getEmail())) {
-            throw new UserException("Email already exists in the database",
-                    new ExceptionDetails("El correo ya ha sido registrado", "low"));
-        }
+    @Override
+    public void createUser(UserRequestDto userRequestDto) throws UserException{
+        validations.validateSave(userRequestDto);
         User user = new User();
+        qrGenerator.guardarQR(userRequestDto.getEmail().split(".com")[0]);
+        String endPointQR = serverUrl + "/qr/get-qr?email=" + userRequestDto.getEmail().split(".com")[0];
         user.setName(userRequestDto.getName());
         user.setPassword(passwordEncoder.encode(userRequestDto.getPassword()));
         user.setEmail(userRequestDto.getEmail());
-        user.setRoles("USER");
+        user.setQrCode(endPointQR);
+        user.getRoles().add("USER");
         repoUser.save(user);
     }
 
     @Override
-    public UserResponseDto getUser(Long id) {
-        if (!repoUser.existsById(id)) {
-            throw new UserException("User not found",
-                    new ExceptionDetails("El usuario no existe", "low"));
-        }
-        User user = repoUser.getReferenceById(id);
-        return new UserResponseDto(user.getId(), user.getName(), user.getEmail());
+    public UserResponseDto getUser() throws UserException {
+        User user = repoUser.findById(authService.getId())
+                .orElseThrow(() -> new UserException("User not found",
+                        new ExceptionDetails("Usuario no encontrado", "low")));
+        return new UserResponseDto(user.getId(), user.getName(), user.getEmail(), user.getQrCode());
     }
 
+    @Transactional
     @Override
-    public void updateUser(UserRequestDto userRequestDto) {
-        AuxiliarAuthService auxiliarAuthService = new AuxiliarAuthService();
-        if (!repoUser.existsById(auxiliarAuthService.getId())) {
-            throw new UserException("User not found",
-                    new ExceptionDetails("El usuario no existe", "low"));
-        }
-        User user = repoUser.getReferenceById(auxiliarAuthService.getId());
+    public void updateUser(UserRequestDto userRequestDto) throws UserException{
+        validations.validateSave(userRequestDto);
+        User user = repoUser.findById(authService.getId())
+                .orElseThrow(() -> new UserException("User not found",
+                        new ExceptionDetails("El usuario no existe", "low")));
+        qrGenerator.deleteQR(authService.getEmail().split(".com")[0]);
+        qrGenerator.guardarQR(userRequestDto.getEmail().split(".com")[0]);
+        String newQrCode = serverUrl + "/qr/get-qr?email=" + userRequestDto.getEmail().split(".com")[0];
         user.setName(userRequestDto.getName());
         user.setEmail(userRequestDto.getEmail());
+        user.setQrCode(newQrCode);
         repoUser.save(user);
     }
 
+    @Transactional
     @Override
-    public void deleteUser(Long id) {
-        if (!repoUser.existsById(id)) {
-            throw new UserException("User not found",
-                    new ExceptionDetails("El usuario no existe", "low"));
-        }
-        repoUser.deleteById(id);
+    public void deleteUser() {
+        validations.existEmail(authService.getEmail());
+        qrGenerator.deleteQR(authService.getEmail().split(".com")[0]);
+        repoUser.deleteById(authService.getId());
+    }
+
+    @Override
+    public List<PredictedUserProjection> predictionUsers(String searchingText, int limit) {
+        List<PredictedUserProjection> predictedUsers = repoUser.findAllUsersLikeByEmailOrName(searchingText, limit);
+        validations.validateUsersReturn(predictedUsers, "Usuario no encontrado");
+        return predictedUsers;
     }
 }

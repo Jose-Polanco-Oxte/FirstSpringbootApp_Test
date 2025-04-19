@@ -3,7 +3,6 @@ package com.devtony.app.security.auth;
 import com.devtony.app.security.details.CustomUserDetails;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
-
 import java.util.Collection;
 
 public class JwtAuthenticationToken extends AbstractAuthenticationToken {

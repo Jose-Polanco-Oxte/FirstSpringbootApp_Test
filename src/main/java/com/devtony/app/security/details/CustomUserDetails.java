@@ -15,6 +15,7 @@ public class CustomUserDetails implements UserDetails {
     private final String email;
     private final String password;
     private final String name;
+    private final String qrCode;
     private final Collection<? extends GrantedAuthority> authorities;
     private final Set<String> roles;
 
@@ -28,6 +29,7 @@ public class CustomUserDetails implements UserDetails {
                 .stream()
                 .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
                 .collect(Collectors.toSet());
+        this.qrCode = user.getQrCode();
     }
 
     @Override
@@ -59,5 +61,9 @@ public class CustomUserDetails implements UserDetails {
 
     public Long getId() {
         return this.id;
+    }
+
+    public String getQrCode() {
+        return this.qrCode;
     }
 }

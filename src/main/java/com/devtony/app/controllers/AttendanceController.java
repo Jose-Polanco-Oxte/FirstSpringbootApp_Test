@@ -14,7 +14,7 @@ public class AttendanceController {
     @Autowired
     private IAttendanceService attendanceService;
 
-    @GetMapping("/get-totalHours")
+    @GetMapping("/get-total-hours")
     public ResponseEntity<String> getTotalHours() {
         return ResponseEntity.ok(attendanceService.totalHoursInAllEvents());
     }
@@ -31,7 +31,7 @@ public class AttendanceController {
         return ResponseEntity.ok(new SimpleFormatBodyResponse("CheckOut realizado correctamente"));
     }
 
-    @GetMapping("/get-checkInOut/{eventID}")
+    @GetMapping("/get-check-in-out/{eventID}")
     public ResponseEntity<AttendanceResponseDto> getCheckInOut(@PathVariable Long eventID) {
         return ResponseEntity.ok(attendanceService.getCheckInOut(eventID));
     }
